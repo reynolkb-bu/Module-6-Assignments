@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from sklearn.neighbors import NearestNeighbors
@@ -13,6 +14,7 @@ FEATURES = ["X1", "X2", "X3"]
 TARGET = "Y"
 MATCH_TREATMENT = "X"
 MATCH_COVARIATE = "Z"
+MATCH_RADIUS = 0.2
 
 
 def load_data(path=DATA):
@@ -58,6 +60,7 @@ def main():
         print(f"{feature:<4} {coefs[feature]:10.4f} {simple:10.4f} {gap:10.4f} {model.tvalues[feature]:10.2f}")
 
     matching()
+    matching_radius()
 
 
 def matching(path=MATCH_DATA):
@@ -80,6 +83,36 @@ def matching(path=MATCH_DATA):
     effect = treated[TARGET].mean() - matched[TARGET].mean()
     print(f"Mean Y (X=1, full sample):     {treated[TARGET].mean():.6f}")
     print(f"Mean Y (X=0, matched sample):  {matched[TARGET].mean():.6f}")
+    print(f"Effect:                        {effect:.6f}")
+
+
+def matching_radius(path=MATCH_DATA, radius=MATCH_RADIUS):
+    """Approach B: match each X=1 row to every X=0 row within `radius` on Z."""
+    df = pd.read_csv(path)
+    treated = df[df[MATCH_TREATMENT] == 1]
+    control = df[df[MATCH_TREATMENT] == 0]
+
+    nn = NearestNeighbors(radius=radius).fit(control[[MATCH_COVARIATE]])
+    _, indices = nn.radius_neighbors(treated[[MATCH_COVARIATE]])
+    sizes = np.array([len(group) for group in indices])
+    matched = np.concatenate(indices)
+
+    print(f"\nApproach B: all X=0 rows within {radius} of each X=1 row")
+    print(f"{len(treated)} X=1 rows -> {matched.size} matches "
+          f"({sizes[sizes > 0].size} non-empty groups, {(sizes == 0).sum()} with no match)")
+    print(f"Group size: min {sizes.min()}, max {sizes.max()}, mean {sizes.mean():.2f}")
+
+    # Q6: duplicates = every appearance of an X=0 row after its first -> 685.
+    duplicates = matched.size - len(set(matched))
+    print(f"Distinct X=0 rows used:        {len(set(matched))} of {len(control)}")
+    print(f"Duplicates (all but first):    {duplicates}")
+
+    # Q7: average the Y of each neighbor group first, then average those group
+    # means, so a big group does not outweigh a small one -> effect 0.584412.
+    group_means = np.array([control[TARGET].iloc[group].mean() for group in indices if len(group)])
+    effect = treated[TARGET].mean() - group_means.mean()
+    print(f"Mean Y (X=1, full sample):     {treated[TARGET].mean():.6f}")
+    print(f"Mean of X=0 group means:       {group_means.mean():.6f}")
     print(f"Effect:                        {effect:.6f}")
 
 

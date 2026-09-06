@@ -6,7 +6,9 @@ I will start by saying that I have been in software for over 11 years. The first
 
 I have built out a system of slash commands along with subagents. At a high level, it is Explore and Plan for the commands. I use Explore to figure out what I want to do, and then Plan will create a plan based on what Explore found. Plan will then auto-delegate to different sub-agents that I have created. For example, for a server project, I will create sub-agents like a QA agent, an API agent, a database agent, etc.
 
-I have implemented this setup in a side software project I built with real paying customers. It is pretty incredible what you are able to do with AI and coding now. I have done a similar setup for this coding homework where I have created explore and plan commands along with different sub-agents. Since I am using Claude Code in the terminal, these sessions are not available to share like a normal chat window in a desktop UI. I have done my best to recreate the chat experiences I had with Claude Code in the ChatGPT UI windows.
+I have implemented this setup in a side software project I built with real paying customers. I have been able to integrate with 20+ year old hardware which would have taken years to do previously and with AI I was able to successfully integrate within a couple of months. It is pretty incredible what you are able to do with AI and coding now. I pushed myself and Claude a lot to accomplish this, diving deep into technical hardware concepts.
+
+I have done a similar setup for this coding homework where I have created explore and plan commands along with different sub-agents. Since I am using Claude Code in the terminal, these sessions are not available to share like a normal chat window in a desktop UI. I have done my best to recreate the chat experiences I had with Claude Code in the ChatGPT UI windows.
 
 ## Shared
 
@@ -14,5 +16,5 @@ I have implemented this setup in a side software project I built with real payin
 
 **(c)** As stated in the overview, I use AI as a coding assistant to write the code for me, which I then review. I have a workflow built out where I explore with the agent, come up with a plan, and then implement and reiterate from there.
 
-**(d)** As stated in the overview, I use AI to not only save time but also push myself and the code in ways that I wouldn't be able to do on my own. I have been able to integrate with 20+ year old hardware which would have taken years to do previously and with AI I was able to successfully integrate within a couple of months.
+**(d)** As stated in the overview, I use AI to not only save time but also push myself and the code in ways that I wouldn't be able to do on my own.
 

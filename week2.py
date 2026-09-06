@@ -27,23 +27,13 @@ SEED = 0
 
 
 def load_data(path=DATA):
-    df = pd.read_csv(path)
-    print(f"Loaded {df.shape[0]} rows x {df.shape[1]} columns from {path.name}")
-    print(df.head(), "\n")
-    print(df.describe(), "\n")
-    print("Missing values per column:")
-    print(df.isna().sum(), "\n")
-    return df
+    return pd.read_csv(path)
 
 
 def to_long(df, groups=GROUPS):
     """Stack G1/G2/G3 into one outcome column with a `group` label."""
-    long = df.melt(id_vars=TREATMENT, value_vars=groups,
+    return df.melt(id_vars=TREATMENT, value_vars=groups,
                    var_name="group", value_name="y")
-    print(f"Reshaped to long: {long.shape[0]} rows "
-          f"({df.shape[0]} times x {len(groups)} groups)")
-    print(long.head(), "\n")
-    return long
 
 
 def fit_fixed_effects(long):
@@ -61,25 +51,19 @@ def fit_per_group(df, groups=GROUPS):
 
 def main():
     df = load_data()
-    long = to_long(df)
-    model = fit_fixed_effects(long)
-    print(model.summary())
-
+    model = fit_fixed_effects(to_long(df))
     coefs = model.params
-    print("\nFixed effects (group intercepts):")
-    for group in GROUPS:
-        print(f"  {group}: {coefs[group]:.6f}")
+    slopes = {g: fit.params[TREATMENT] for g, fit in fit_per_group(df).items()}
 
-    # Q2: the one time coefficient shared by all three groups -> 0.009017.
-    print(f"\nCommon linear coefficient on {TREATMENT}: {coefs[TREATMENT]:.6f}")
-    print(f"R-squared: {model.rsquared:.4f}")
+    print(f"{'group':<6} {'fixed effect':>14} {'own slope':>12}")
+    for group in GROUPS:
+        print(f"{group:<6} {coefs[group]:14.6f} {slopes[group]:12.6f}")
 
     # Q1: the coefficient of group 1 -> 0.008498, its own slope on time. (Not the
-    # G1 fixed effect above, 0.0786; the options are all slope-sized.)
-    print("\nPer-group regressions (own intercept, own slope):")
-    print(f"{'group':<6} {'intercept':>12} {'slope':>12}")
-    for group, fit in fit_per_group(df).items():
-        print(f"{group:<6} {fit.params['const']:12.6f} {fit.params[TREATMENT]:12.6f}")
+    # G1 fixed effect, 0.0786; the answer options are all slope-sized.)
+    # Q2: the one time coefficient shared by all three groups -> 0.009017.
+    print(f"\nQ1 coefficient of group 1 (G1 slope): {slopes['G1']:.6f}  -> D (0.00850)")
+    print(f"Q2 common linear coefficient:         {coefs[TREATMENT]:.6f}  -> D (0.009017)")
 
 
 def naive_effect(df):
@@ -109,32 +93,27 @@ def bootstrap(df, estimators, n_samples=N_BOOTSTRAP, seed=SEED):
 
 def confounded_effects():
     df = load_data(BOOT_DATA)
-    treated = df[df[BOOT_TREATMENT] == 1]
-    control = df[df[BOOT_TREATMENT] == 0]
-    print(f"{len(treated)} treated rows, {len(control)} control rows")
-    print(f"corr(X, Z) = {df[BOOT_TREATMENT].corr(df[BOOT_CONFOUNDER]):.4f}, "
-          f"corr(Y, Z) = {df[BOOT_OUTCOME].corr(df[BOOT_CONFOUNDER]):.4f}\n")
 
     # Q3: treated minus untreated, mean(Y | X=1) - mean(Y | X=0) -> 2.9207. It
     # overstates the effect: Z also raises Y and is not held fixed, so the
     # regression puts the effect lower, at 2.8187.
-    print(f"Point estimates on the full sample:")
-    print(f"  naive difference of means: {naive_effect(df):.6f}")
-    print(f"  regression Y ~ X + Z:      {regression_effect(df):.6f}\n")
+    print(f"\nQ3 naive difference of means:  {naive_effect(df):.6f}  -> C (2.921)")
 
-    estimators = {"naive": naive_effect, "regression": regression_effect}
-    print(f"Bootstrapping {N_BOOTSTRAP} resamples of {len(df)} rows (seed {SEED})...")
-    draws = bootstrap(df, estimators)
+    draws = bootstrap(df, {"naive": naive_effect, "regression": regression_effect})
 
     # Q4: variance of the naive effect -> ~0.0315 ("naive" row), matching the
     # analytic var(Y|X=1)/n1 + var(Y|X=0)/n0 = 0.031877.
-    # Q5: skewness of the regression effect -> ~0.040 ("regression" row), near
+    # Q5: skewness of the regression effect -> ~0.065 ("regression" row), near
     # zero as the CLT implies. Skewness is noisy: its standard error here is
-    # sqrt(6/20000) = 0.017, so a different seed moves it a few hundredths.
+    # sqrt(6/20000) = 0.017, and seeds 0-4 give 0.029-0.065, so the answer is
+    # option A rather than a number this run reproduces exactly.
     print(f"\n{'estimator':<12} {'mean':>10} {'variance':>12} {'skewness':>10}")
     for name, values in draws.items():
         print(f"{name:<12} {values.mean():10.6f} {values.var(ddof=1):12.6f} "
               f"{skew(values):10.6f}")
+
+    print(f"\nQ4 variance of naive effect:      {draws['naive'].var(ddof=1):.6f}  -> D (0.03274)")
+    print(f"Q5 skewness of regression effect: {skew(draws['regression']):.6f}  -> A (0.04850)")
 
 
 if __name__ == "__main__":

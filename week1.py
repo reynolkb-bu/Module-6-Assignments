@@ -18,15 +18,7 @@ MATCH_RADIUS = 0.2
 
 
 def load_data(path=DATA):
-    df = pd.read_csv(path)
-    print(f"Loaded {df.shape[0]} rows x {df.shape[1]} columns from {path.name}")
-    print(df.head(), "\n")
-    print(df.describe(), "\n")
-    print("Missing values per column:")
-    print(df.isna().sum(), "\n")
-    print("Correlation matrix:")
-    print(df.corr(), "\n")
-    return df
+    return pd.read_csv(path)
 
 
 def fit_model(df, features=FEATURES):
@@ -35,36 +27,29 @@ def fit_model(df, features=FEATURES):
     return sm.OLS(y, X).fit()
 
 
-def main():
+def regression():
     df = load_data()
     model = fit_model(df)
-    print(model.summary())
-
-    # Q1: which value is the coefficient of X1 closest to? -> 1 (fitted 1.0071).
     coefs = model.params
-    terms = " + ".join(f"{coefs[f]:.4f}*{f}" for f in FEATURES)
-    print("\nFitted equation:")
-    print(f"  Y = {coefs['const']:.4f} + {terms}")
-    print(f"R-squared: {model.rsquared:.4f}   Adjusted R-squared: {model.rsquared_adj:.4f}")
 
-    # Q2: which Xi differs most between its partial slope (all three Xi in the
-    # model, so the others are held fixed) and its marginal slope (Xi alone)?
-    # -> X2, because it correlates 0.90 with X1 and so absorbs X1's effect when
-    # regressed on its own. X3 barely moves; it is uncorrelated with the others.
-    print(f"\n{'var':<4} {'multiple':>10} {'simple':>10} {'|diff|':>10} {'t':>10}")
-    for feature in FEATURES:
-        simple = fit_model(df, [feature]).params[feature]
-        gap = abs(coefs[feature] - simple)
-        # Q3: most significant coefficient by t-statistic -> X3 (largest
-        # coefficient, smallest standard error).
-        print(f"{feature:<4} {coefs[feature]:10.4f} {simple:10.4f} {gap:10.4f} {model.tvalues[feature]:10.2f}")
+    simple = {f: fit_model(df, [f]).params[f] for f in FEATURES}
+    gaps = {f: abs(coefs[f] - simple[f]) for f in FEATURES}
 
-    matching()
-    matching_radius()
+    print(f"{'var':<4} {'multiple regression':>10} {'simple regression':>10} {'|diff|':>10} {'t':>10}")
+    for f in FEATURES:
+        print(f"{f:<4} {coefs[f]:10.4f} {simple[f]:10.4f} {gaps[f]:10.4f} {model.tvalues[f]:10.2f}")
+
+    # Q1: coefficient of X1 -> 1.0071, closest to 1 (B).
+    # Q2: largest |multiple - simple| -> X2 (A); it correlates 0.90 with X1 and so
+    #     absorbs X1's effect when regressed on its own. X3 barely moves.
+    # Q3: largest |t| -> X3 (C).
+    print(f"\nQ1 coefficient of X1:            {coefs['X1']:.4f}  -> B (1)")
+    print(f"Q2 greatest multiple regression/simple regression gap: {max(gaps, key=gaps.get)}  -> A")
+    print(f"Q3 largest |t-statistic|:        {model.tvalues[FEATURES].abs().idxmax()}  -> C")
 
 
 def matching(path=MATCH_DATA):
-    """Match each X=1 row to its nearest X=0 row by Z (1-NN, with replacement)."""
+    """Q4-Q5: match each X=1 row to its nearest X=0 row by Z (1-NN, with replacement)."""
     df = load_data(path)
     treated = df[df[MATCH_TREATMENT] == 1]
     control = df[df[MATCH_TREATMENT] == 0]
@@ -73,47 +58,38 @@ def matching(path=MATCH_DATA):
     distances, indices = nn.kneighbors(treated[[MATCH_COVARIATE]])
     matched = control.iloc[indices.ravel()]
 
-    # Q4: distance of the farthest match -> 0.210217.
-    print(f"Matched {len(treated)} X=1 rows to {indices.ravel().size} of "
-          f"{len(control)} X=0 rows ({len(set(indices.ravel()))} distinct, matched with replacement)")
-    print(f"Match distance: max {distances.max():.6f}, mean {distances.mean():.6f}")
-
     # Q5: effect = mean Y over all X=1 rows minus mean Y over the matched X=0
     # sample -> 0.54336, close to the 0.5 shift built into the data.
     effect = treated[TARGET].mean() - matched[TARGET].mean()
-    print(f"Mean Y (X=1, full sample):     {treated[TARGET].mean():.6f}")
-    print(f"Mean Y (X=0, matched sample):  {matched[TARGET].mean():.6f}")
-    print(f"Effect:                        {effect:.6f}")
+    print(f"\nQ4 farthest match distance:   {distances.max():.6f}  -> A")
+    print(f"Q5 effect (1-NN matching):    {effect:.6f}  -> A")
 
 
 def matching_radius(path=MATCH_DATA, radius=MATCH_RADIUS):
-    """Approach B: match each X=1 row to every X=0 row within `radius` on Z."""
-    df = pd.read_csv(path)
+    """Q6-Q7: approach B, match each X=1 row to every X=0 row within `radius` on Z."""
+    df = load_data(path)
     treated = df[df[MATCH_TREATMENT] == 1]
     control = df[df[MATCH_TREATMENT] == 0]
 
     nn = NearestNeighbors(radius=radius).fit(control[[MATCH_COVARIATE]])
     _, indices = nn.radius_neighbors(treated[[MATCH_COVARIATE]])
-    sizes = np.array([len(group) for group in indices])
     matched = np.concatenate(indices)
-
-    print(f"\nApproach B: all X=0 rows within {radius} of each X=1 row")
-    print(f"{len(treated)} X=1 rows -> {matched.size} matches "
-          f"({sizes[sizes > 0].size} non-empty groups, {(sizes == 0).sum()} with no match)")
-    print(f"Group size: min {sizes.min()}, max {sizes.max()}, mean {sizes.mean():.2f}")
 
     # Q6: duplicates = every appearance of an X=0 row after its first -> 685.
     duplicates = matched.size - len(set(matched))
-    print(f"Distinct X=0 rows used:        {len(set(matched))} of {len(control)}")
-    print(f"Duplicates (all but first):    {duplicates}")
 
     # Q7: average the Y of each neighbor group first, then average those group
     # means, so a big group does not outweigh a small one -> effect 0.584412.
     group_means = np.array([control[TARGET].iloc[group].mean() for group in indices if len(group)])
     effect = treated[TARGET].mean() - group_means.mean()
-    print(f"Mean Y (X=1, full sample):     {treated[TARGET].mean():.6f}")
-    print(f"Mean of X=0 group means:       {group_means.mean():.6f}")
-    print(f"Effect:                        {effect:.6f}")
+    print(f"\nQ6 duplicates (all but first): {duplicates}  -> C")
+    print(f"Q7 effect (radius matching):  {effect:.6f}  -> A")
+
+
+def main():
+    regression()
+    matching()
+    matching_radius()
 
 
 if __name__ == "__main__":

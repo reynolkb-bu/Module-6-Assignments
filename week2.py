@@ -1,10 +1,11 @@
-"""Week 2 -- fixed effects on csvs/homework_2.1.csv, bootstrapped treatment
-effects on csvs/homework_2.2.csv.
+"""Week 2 -- fixed effects (homework_2.1.csv), bootstrapped effects (homework_2.2.csv).
 
-The fixed-effects model is y_{g,t} = alpha_g + beta * t: one slope on time for
-all the data, plus a per-group intercept. Stacking G1/G2/G3 into one column and
-regressing on time plus a group dummy each, with no constant, makes every dummy
-coefficient that group's fixed effect.
+Fixed effects: y_{g,t} = alpha_g + beta * t -- one shared slope on time, one
+intercept per group. Stack G1/G2/G3 into a single column, regress on time plus a
+dummy per group with no constant, and each dummy coefficient is that group's
+fixed effect.
+
+Answers: Q1 D, Q2 D, Q3 C, Q4 D, Q5 A.
 """
 
 from pathlib import Path
@@ -15,107 +16,90 @@ import statsmodels.api as sm
 from scipy.stats import skew
 
 CSVS = Path(__file__).parent / "csvs"
-DATA = CSVS / "homework_2.1.csv"
-BOOT_DATA = CSVS / "homework_2.2.csv"
 GROUPS = ["G1", "G2", "G3"]
-TREATMENT = "time"
-BOOT_TREATMENT = "X"
-BOOT_OUTCOME = "Y"
-BOOT_CONFOUNDER = "Z"
+TIME, X, Y, Z = "time", "X", "Y", "Z"
 N_BOOTSTRAP = 20_000
 SEED = 0
 
 
-def load_data(path=DATA):
-    return pd.read_csv(path)
+def load(name):
+    return pd.read_csv(CSVS / name)
 
 
-def to_long(df, groups=GROUPS):
-    """Stack G1/G2/G3 into one outcome column with a `group` label."""
-    return df.melt(id_vars=TREATMENT, value_vars=groups,
-                   var_name="group", value_name="y")
+# --- Q1-Q2: fixed effects -------------------------------------------------
+
+def fixed_effects(df):
+    """Shared slope on time + one intercept per group. Returns the coefficients."""
+    long = df.melt(id_vars=TIME, value_vars=GROUPS, var_name="group", value_name="y")
+    design = pd.concat([long[[TIME]], pd.get_dummies(long["group"], dtype=float)], axis=1)
+    return sm.OLS(long["y"], design).fit().params
 
 
-def fit_fixed_effects(long):
-    """One shared slope on time + a separate intercept per group (no constant)."""
-    dummies = pd.get_dummies(long["group"], dtype=float)
-    X = pd.concat([long[[TREATMENT]], dummies], axis=1)
-    return sm.OLS(long["y"], X).fit()
+def own_slopes(df):
+    """Each group fit alone: its own intercept and its own slope on time."""
+    design = sm.add_constant(df[[TIME]])
+    return {g: sm.OLS(df[g], design).fit().params[TIME] for g in GROUPS}
 
 
-def fit_per_group(df, groups=GROUPS):
-    """Each group on its own: its own intercept and its own slope on time."""
-    X = sm.add_constant(df[[TREATMENT]])
-    return {g: sm.OLS(df[g], X).fit() for g in groups}
-
-
-def main():
-    df = load_data()
-    model = fit_fixed_effects(to_long(df))
-    coefs = model.params
-    slopes = {g: fit.params[TREATMENT] for g, fit in fit_per_group(df).items()}
+def report_fixed_effects():
+    df = load("homework_2.1.csv")
+    coefs, slopes = fixed_effects(df), own_slopes(df)
 
     print(f"{'group':<6} {'fixed effect':>14} {'own slope':>12}")
-    for group in GROUPS:
-        print(f"{group:<6} {coefs[group]:14.6f} {slopes[group]:12.6f}")
+    for g in GROUPS:
+        print(f"{g:<6} {coefs[g]:14.6f} {slopes[g]:12.6f}")
 
-    # Q1: the coefficient of group 1 -> 0.008498, its own slope on time. (Not the
-    # G1 fixed effect, 0.0786; the answer options are all slope-sized.)
-    # Q2: the one time coefficient shared by all three groups -> 0.009017.
+    # Q1 wants G1's own slope, not its fixed effect (0.0786) -- the options are
+    # all slope-sized. Q2 is the one time coefficient shared by every group.
     print(f"\nQ1 coefficient of group 1 (G1 slope): {slopes['G1']:.6f}  -> D (0.00850)")
-    print(f"Q2 common linear coefficient:         {coefs[TREATMENT]:.6f}  -> D (0.009017)")
+    print(f"Q2 common linear coefficient:         {coefs[TIME]:.6f}  -> D (0.009017)")
 
+
+# --- Q3-Q5: confounding and the bootstrap ---------------------------------
 
 def naive_effect(df):
-    """Difference of group means -- ignores the confounder Z, so it is biased."""
-    treated = df[df[BOOT_TREATMENT] == 1][BOOT_OUTCOME]
-    control = df[df[BOOT_TREATMENT] == 0][BOOT_OUTCOME]
-    return treated.mean() - control.mean()
+    """Difference of group means. Ignores Z, so it is biased upward."""
+    return df[df[X] == 1][Y].mean() - df[df[X] == 0][Y].mean()
 
 
 def regression_effect(df):
     """Coefficient on X from Y ~ const + X + Z: the effect holding Z fixed."""
-    X = sm.add_constant(df[[BOOT_TREATMENT, BOOT_CONFOUNDER]])
-    return sm.OLS(df[BOOT_OUTCOME], X).fit().params[BOOT_TREATMENT]
+    return sm.OLS(df[Y], sm.add_constant(df[[X, Z]])).fit().params[X]
 
 
 def bootstrap(df, estimators, n_samples=N_BOOTSTRAP, seed=SEED):
     """Resample n rows with replacement n_samples times, re-estimating each time."""
     rng = np.random.default_rng(seed)
-    n = len(df)
     draws = {name: np.empty(n_samples) for name in estimators}
     for i in range(n_samples):
-        sample = df.iloc[rng.integers(0, n, n)]
-        for name, estimator in estimators.items():
-            draws[name][i] = estimator(sample)
+        sample = df.iloc[rng.integers(0, len(df), len(df))]
+        for name, estimate in estimators.items():
+            draws[name][i] = estimate(sample)
     return draws
 
 
-def confounded_effects():
-    df = load_data(BOOT_DATA)
+def report_bootstrap():
+    df = load("homework_2.2.csv")
 
-    # Q3: treated minus untreated, mean(Y | X=1) - mean(Y | X=0) -> 2.9207. It
-    # overstates the effect: Z also raises Y and is not held fixed, so the
-    # regression puts the effect lower, at 2.8187.
+    # Q3 overstates the effect: Z raises Y too and is not held fixed, so the
+    # regression lands lower, at 2.8187.
     print(f"\nQ3 naive difference of means:  {naive_effect(df):.6f}  -> C (2.921)")
 
     draws = bootstrap(df, {"naive": naive_effect, "regression": regression_effect})
 
-    # Q4: variance of the naive effect -> ~0.0315 ("naive" row), matching the
-    # analytic var(Y|X=1)/n1 + var(Y|X=0)/n0 = 0.031877.
-    # Q5: skewness of the regression effect -> ~0.065 ("regression" row), near
-    # zero as the CLT implies. Skewness is noisy: its standard error here is
-    # sqrt(6/20000) = 0.017, and seeds 0-4 give 0.029-0.065, so the answer is
-    # option A rather than a number this run reproduces exactly.
     print(f"\n{'estimator':<12} {'mean':>10} {'variance':>12} {'skewness':>10}")
     for name, values in draws.items():
         print(f"{name:<12} {values.mean():10.6f} {values.var(ddof=1):12.6f} "
               f"{skew(values):10.6f}")
 
+    # Q4 matches the analytic var(Y|X=1)/n1 + var(Y|X=0)/n0 = 0.031877.
+    # Q5 is near zero, as the CLT implies, but skewness is noisy: its standard
+    # error is sqrt(6/20000) = 0.017 and seeds 0-4 give 0.029-0.065. So the
+    # answer is option A, not a number this run reproduces exactly.
     print(f"\nQ4 variance of naive effect:      {draws['naive'].var(ddof=1):.6f}  -> D (0.03274)")
     print(f"Q5 skewness of regression effect: {skew(draws['regression']):.6f}  -> A (0.04850)")
 
 
 if __name__ == "__main__":
-    main()
-    confounded_effects()
+    report_fixed_effects()
+    report_bootstrap()

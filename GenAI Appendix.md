@@ -18,3 +18,11 @@ I have done a similar setup for this coding homework where I have created explor
 
 **(d)** As stated in the overview, I use AI to not only save time but also push myself and the code in ways that I wouldn't be able to do on my own.
 
+## Week 1
+
+**(a)** https://chatgpt.com/share/6a9dac17-fcd8-83e8-9f83-43bbbb33f3fa
+
+## Week 2
+
+**(a)** https://chatgpt.com/share/6a9daf46-9798-83e8-a972-414616977c02
+

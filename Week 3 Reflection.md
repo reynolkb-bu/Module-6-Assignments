@@ -2,16 +2,16 @@
 
 ## 1. In the event study in Coding Quiz 3, how would we go about testing for a change in the second derivative as well?
 
-Add a squared time term, and let it switch on at the event, the same way we did for the slope. With s = time − 50 and post = 1 after the event, the model is y = a + b·s + c·s² + d·post + e·s·post + f·s²·post. Here d is the jump in value, e is the jump in slope, and f measures the jump in curvature.
+The best way I thought of to go about testing for a change in the second derivative is to think of a car. The value is where the car is at a certain point in time. The first derivative would be its speed, and the second derivative would be whether it's speeding up or slowing down.
 
-The test is whether f is different from zero, using its t-statistic. I ran this on `homework_3.1.csv` (program: `week3_reflection.py`). None of the three series showed a change in curvature (all p-values above 0.15), so the quiz answers still hold.
+The quiz tested whether the car suddenly moved to a new spot in time and whether its speed changed. Testing the second derivative is simply asking whether the car sped up or slowed down at a certain point in time. In order to test it we can add an additional term to the regression equation. The term would be a squared term that only applies after the event. If that term is different from zero, that means the curve changed at that event. 
 
-Two cautions. Every extra term uses up data, and there are only 50 points on each side of the event, so the estimates get noisier. A squared term can also bend at the ends of the data in ways that look like a jump, so it's safer to fit only the points near the event.
+I then ran this on the quiz data. In my `week3_reflection.py` file, none of the three datasets actually showed a change in the second derivative, meaning the answer still holds. 
 
 ## 2. Create your own scenario that illustrates differences-in-differences. Describe the story behind the data and show whether there is a nonzero treatment effect.
 
-A software company launches a new onboarding checklist to reduce support tickets. It goes live for US customers in month 7, but the EU launch is delayed by a privacy review. That delay gives us a control group: EU customers keep the old onboarding. Comparing the US before and after isn't enough, because tickets were already falling everywhere as the product improved.
+My own scenario that illustrates differences in differences would be a software company that adds an onboarding checklist. They add this checklist because they're hoping to reduce the number of support tickets. U.S. customers get this onboarding checklist right away, but EU customers don't get it until later. 
 
-I simulated 200 customers per region over 12 months, with a true checklist effect of −0.8 tickets per month (program: `week3_reflection.py`). US tickets fell by 1.34 after launch, but EU tickets also fell by 0.55 without the checklist. The difference-in-differences is −1.34 − (−0.55) = −0.78. Looking only at the US would have overstated the effect by about 70%.
+Support tickets went down in the U.S. after the onboarding checklist launched, but they also went down in the EU, which never got the checklist. This means the drop in support tickets was not caused solely by the checklist.
 
-The regression gives the same −0.78, with a 95% confidence interval of −0.89 to −0.67. That interval excludes zero, so the treatment effect is clearly nonzero, and it contains the true −0.8. Before launch, both regions' ticket trends moved together (p = 0.86), which supports the parallel-trends assumption the method depends on.
+In my simulated data, the number of U.S. support tickets dropped by 1.34 per month, and EU tickets dropped by 0.55 per month. The checklist did have a real effect: 1.34 - 0.55 = about 0.78 fewer support tickets per month. This means that there is a non-zero treatment effect since the onboarding checklist actually reduced the number of support tickets. 

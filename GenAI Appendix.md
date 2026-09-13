@@ -12,7 +12,7 @@ I have done a similar setup for this coding homework where I have created explor
 
 ## Shared
 
-**(b)** Claude Code Max 5x Opus High and ChatGPT Plus
+**(b)** Claude Code Max 20x Opus High and ChatGPT Plus
 
 **(c)** As stated in the overview, I use AI as a coding assistant to write the code for me, which I then review. I have a workflow built out where I explore with the agent, come up with a plan, and then implement and reiterate from there.
 
@@ -26,3 +26,6 @@ I have done a similar setup for this coding homework where I have created explor
 
 **(a)** https://chatgpt.com/share/6a9daf46-9798-83e8-a972-414616977c02
 
+## Week 3
+
+**(a)** https://chatgpt.com/share/6aa6d81b-7924-83e8-ba46-567f5222f8b3

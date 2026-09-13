@@ -10,8 +10,8 @@ The way we can be certain about this is to check whether the far matches actuall
 
 ## 2. Invent your own type of matching similar to (A) and (B), which has a different way to pick the matches in X = 0.
 
-My approach is kernel matching. Like approach B, it uses every control within a distance h of each treated row. Unlike B, closer controls count for more. Each control gets a weight that is highest when it sits right on the treated row and falls smoothly to zero at distance h. I compare the treated row's Y to that weighted average of control Y values.
+The approach I would use that is similar to A and B would be weighted matching. Similar to approach B, I would take every control within a set of each treated row. The difference is that closer controls count more than the farther ones. A control right next to the treated row would be weighted more, whereas a control near the edge would not be weighted as much.
 
-This fixes a weakness in both A and B: neither pays attention to how close a match actually is. Approach A uses one control and throws away a second one that is almost as close. Approach B treats a control 0.199 away the same as one 0.001 away. Kernel matching leans on the closest controls, the way a good appraiser leans on the most similar houses.
+When we use approach A, it picks the control that is the closest, regardless of other controls being almost as close as the one that gets picked. When using approach B, it will look at every nearby control. Let's say there is one at 0.0 and another at 0.9. It would weight these equally, which doesn't really make sense.
 
-The cost is choosing h. A small h keeps matches close but leaves few controls, so the estimate is noisy. A large h brings in more controls and smooths the estimate, but lets worse matches back in.
+Weighted matching is a balanced way of doing it. It would be like pricing a house where you look at houses that are nearby but put more weight on the ones that are very similar to each other.

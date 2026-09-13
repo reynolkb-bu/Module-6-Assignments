@@ -2,34 +2,16 @@
 
 ## 1. In Coding Quiz 1, you are asked to find the distance of the farthest match in a set. Is this farthest match distance too far to be a meaningful match? How can you decide this?
 
-Yes, it is too far.
+Yes, a distance of the farthest match in a set is too great to be a meaningful match. The reason is that matching usually only works if the pair is similar. For example, pricing a kitchen remodel by comparing a remodeled house to one that has not been remodeled. This would be like comparing a house that is twice as large. The pricing difference would be about the size of the house, not the actual kitchen.
 
-It helps to think about what matching is really doing. Say you want to know how much a kitchen remodel adds to a home's price. You cannot remodel and not remodel the same house, so instead you find a similar house that was not remodeled and compare the two sale prices. The whole method rests on the two houses being similar. If the closest comparable home you can find is twice the size, the price gap tells you about size, not about the kitchen. Here, Z is the "size" we match on and Y is the "price" we compare.
+One way to decide is to compare the gap in the data spread. The furthest match is about 0.21 apart, which is about 0.48 standard deviations. A common rule of thumb we can use allows for about 0.2 standard deviations. The typical match here is only 0.013 apart. This is due to 18 of the 48 treated rows having a larger Z than every control, so they all get matched to the same edge control.
 
-So the question is whether the worst pair is still similar enough. Three ways to check:
-
-**Compare the gap to the spread of the data.** The farthest match is 0.210217 apart. The standard deviation of Z is about 0.25, so that pair is roughly 0.84 standard deviations apart. A common rule of thumb is to allow no more than 0.2 standard deviations, which is about 0.05 here. This match is four times too far. The typical match is only 0.0133 apart, so this one is about 16 times worse than normal.
-
-**Ask why it is so far.** That treated row has Z = 0.9884, and the closest control available is 0.7782, the largest control in the data. Nothing closer exists. This is not bad luck on one row either: 18 of the 48 treated rows have a Z higher than every single control, so all 18 get pushed onto that same edge control. It is the appraisal problem again, where the house you are pricing is bigger than anything that has sold nearby. You are guessing past the end of the data, and no smarter algorithm fixes it, because the comparable houses do not exist.
-
-**See whether the far matches change the answer.** This is the most convincing test. Among the controls, Y rises about 1-for-1 with Z, so a 0.21 gap in Z drags about 0.21 of error into that comparison. Using all 48 matches gives an effect of 0.5434. Keeping only matches within 0.05 gives 0.5026, and within 0.02 gives 0.4997. All of them move toward 0.5, which is the true effect built into the data. The estimate moves once the bad matches are gone, which tells us they were the problem.
-
-The tradeoff is that dropping those rows changes the question being answered. We are no longer measuring the effect for all treated rows, only for the ones that had a real comparison in the first place.
+The way we can be certain about this is to check whether the far matches actually change the answer. If we use all the matches, the effect is 0.543. If we keep only the matches within 0.05, it gives us 0.503. If we keep all the matches within 0.02, it gives us 0.500. The estimate improves once the bad matches are dropped, which proves that they were indeed the problem.
 
 ## 2. Invent your own type of matching similar to (A) and (B), which has a different way to pick the matches in X = 0.
 
-My approach is kernel matching, also called distance-weighted matching. Like approach B, it uses every control within a set distance h. Unlike B, it does not treat them all as equal. Closer controls count for more.
+My approach is kernel matching. Like approach B, it uses every control within a distance h of each treated row. Unlike B, closer controls count for more. Each control gets a weight that is highest when it sits right on the treated row and falls smoothly to zero at distance h. I compare the treated row's Y to that weighted average of control Y values.
 
-For each treated row I measure how far away each control is in units of h:
+This fixes a weakness in both A and B: neither pays attention to how close a match actually is. Approach A uses one control and throws away a second one that is almost as close. Approach B treats a control 0.199 away the same as one 0.001 away. Kernel matching leans on the closest controls, the way a good appraiser leans on the most similar houses.
 
-    u = (Z_control - Z_treated) / h
-
-and give that control a weight of 0.75 * (1 - u^2) when u is between -1 and 1, and 0 otherwise. Controls sitting right on top of the treated row get the full weight, and the weight falls off smoothly to 0 at distance h. I rescale the weights in each group so they add to 1, take the weighted average of those controls' Y values, and subtract that from the average Y of the treated rows.
-
-The reason to do this is that A and B both ignore how close a match actually is. Back to the appraisal: approach A is an appraiser who uses exactly one comparable home and throws out the second-best one, even when the two are nearly identical. In this data it discards a control 0.014 away because another was 0.013 away. Approach B is an appraiser who averages every home within a mile and gives the one across the street the same say as the one at the far edge, treating a control 0.199 away just like one 0.001 away.
-
-Kernel matching is what an actual appraiser does. It leans hardest on the closest comparables, lets distant ones fade out, and gives no weight at all past the cutoff, so no home jumps in or out of the calculation just because it moved an inch.
-
-It also softens the problem from question 1. An edge control still gets used when it is the only option available, but it comes in with a small weight, so it does less damage to the estimate. Averaging several nearby controls instead of leaning on a single one also makes the comparison steadier.
-
-The cost is having to choose h. A small h keeps the matches close but leaves few controls in each group, so the estimate gets noisy. A large h brings in more controls and smooths the estimate, but it lets worse matches back in and biases the result.
+The cost is choosing h. A small h keeps matches close but leaves few controls, so the estimate is noisy. A large h brings in more controls and smooths the estimate, but lets worse matches back in.

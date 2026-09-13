@@ -2,16 +2,16 @@
 
 ## 1. Invent an example situation that would use fixed effects.
 
-A coffee chain with 30 stores rolls out a new menu and wants to know whether it raised weekly sales. The problem is that the stores were never comparable. An airport store sells far more than a suburban strip-mall store, so comparing stores mostly measures location, not the menu.
+An example situation that would use fixed effects would be a coffee chain. Let's say the chain has 30 different locations. They roll out a new menu and want to know whether the new menu accounted for an increase in sales week over week.
 
-Fixed effects fix this by giving each store its own baseline. Every store gets its own intercept, and one shared menu effect is estimated on top. The question becomes "did each store beat its own normal week?" Anything about a store that doesn't change, like parking or foot traffic, is absorbed by its intercept.
+The issue with this is that the stores were never comparable. For example, a location at an airport would sell a lot more than a location at a mall in a town in the middle of nowhere.
 
-This is the same model as `week2.py`: one shared slope plus a separate intercept per group. The tradeoff is that you can only study things that change. Anything permanently true about a store can't be measured.
+Really, what you would want to do is compare the stores across locations, not the actual menu. Using fixed effects would fix this issue by giving each store its own baseline. Each store would get its own intercept and the shared menu would be estimated on top of that. The question then becomes: did each store beat its own weekly sales? 
 
 ## 2. Bootstrap the variance in the mean of a Pareto distribution. Explain what you had to do. As the sample size grows, what happens to that variance?
 
-The variance of the mean gets smaller, at about 1/n (program: `week2_pareto_bootstrap.py`). This is different from the variance of the individual values, which stays at 0.75 no matter the sample size. Individual values stay spread out, but the average settles down as the sample grows.
+As the sample size grows, variance gets smaller. For example, think of Google reviews. A store with only a few Google reviews would be greatly impacted by one bad review or one good review. However, the more reviews a store gets, the less each individual review moves their average. This relates to Pareto values because the average becomes more stable. 
 
-To bootstrap it, I drew a Pareto sample of size n, resampled it with replacement 5,000 times, took the mean each time, and took the variance of those means. I repeated this for n from 100 to 25,600, quadrupling each time. Pareto has a heavy tail, so a single sample gave jumpy results. Averaging over 40 samples per n made the pattern clear.
+To bootstrap the variance of the mean of a Pareto distribution, I took one sample from the distribution. After that, I made 5,000 new samples by randomly picking values, allowed repeating values, and then took the average of each. The variance of the mean is how much those 5,000 averages vary.
 
-Each 4x increase in n cut the variance to roughly a quarter, and by n = 25,600 the bootstrap (0.000030) matched theory (0.000029). One caveat: this only works when the Pareto shape is above 2. I used 3. With a heavier tail the variance is infinite, and a bigger sample doesn't reliably give a steadier average.
+Every time the sample size increased by 4x, the variance dropped by about 25%, which makes sense. This means the variance shrinks at about 1/n, which matches the Pareto theory. The one issue I found is that Pareto data sometimes will have big values, meaning a single run could seem scattered. Therefore I had to repeat each run 40 times and average those runs out.

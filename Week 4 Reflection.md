@@ -5,12 +5,13 @@
 I broke the data into 20 groups based on W. That way, everyone in a group has about the same W. Then within each group, I found out how much Y changed when Z went from zero to one, and then divided it by how much X changed. After that, I took the average across 20 groups. I got 1.51, which is about the same as 1.56 from the first option. This means that controlling for W didn't change the answer. Therefore, we don't need W because Z was already random for everyone.
 
 ```python
-def effect(group):
-    m = group.groupby("Z")[["X", "Y"]].mean()
-    return (m.loc[1, "Y"] - m.loc[0, "Y"]) / (m.loc[1, "X"] - m.loc[0, "X"])
+def iv_effect(df):
+    means = df.groupby("Z")[["X", "Y"]].mean()
+    change = means.loc[1] - means.loc[0]
+    return change["Y"] / change["X"]
 
-groups = pd.qcut(df["W"], 20)
-print(np.mean([effect(g) for _, g in df.groupby(groups, observed=True)]))  # 1.51
+w_groups = pd.qcut(df["W"], 20)
+print(np.mean([iv_effect(group) for _, group in df.groupby(w_groups, observed=True)]))  # 1.51
 ```
 
 The issue I ran into when I first split W into groups is that the groups at the edge of the ranges only had a few people in them. This is because the extreme W values are rare. I fix this by using pd.qcut, which puts the same number of people into every group instead of breaking up the groups by range.

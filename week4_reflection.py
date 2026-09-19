@@ -1,9 +1,10 @@
-"""Week 4 reflection -- the binned-W instrumental variable on homework_4.1.csv,
-and college admission vs. test score near the cutoff (homework_4.2.a/b.csv).
+"""Week 4 reflection -- the instrumental variable averaged over ranges of W
+(homework_4.1.csv), and college admission vs. test score near the cutoff
+(homework_4.2.a/b.csv).
 
-Q1: split W into narrow ranges, take the Wald ratio in each, and average.
-Equal-width ranges leave only a few rows (sometimes one Z group) at the tails,
-so the ranges hold equal counts instead.
+Q1: split W into groups, get the instrument's effect in each, and average.
+Groups that each cover the same range of W leave only a few rows at the edges,
+which gives wild results, so pd.qcut puts the same number of rows in each group.
 
 Q2: plot Y vs. X from 75 to 85. Y is 0/1, so the dots are the share admitted
 in each half-point of score, against the probability predicted by a logistic
@@ -19,13 +20,11 @@ import statsmodels.formula.api as smf
 
 CSVS = Path(__file__).parent / "csvs"
 PLOT = Path(__file__).parent / "week4_reflection.png"
-W_BINS = 20
 CUTOFF = 80
-WINDOW = 5                 # plot 75 to 85
-BIN_WIDTH = 0.5
+LOW, HIGH = CUTOFF - 5, CUTOFF + 5   # plot 75 to 85
+DOT_WIDTH = 0.5                      # each dot covers half a point of score
 
-INK, MUTED, GRID = "#0b0b0b", "#52514e", "#e5e4df"
-DOTS, LINE = "#52514e", "#2a78d6"
+INK, MUTED, GRID, BLUE = "#0b0b0b", "#52514e", "#e5e4df", "#2a78d6"
 
 
 def load(name):
@@ -34,33 +33,29 @@ def load(name):
 
 # --- Q1: instrumental variable, averaged over ranges of W ------------------
 
-def wald(df):
-    """(Y|Z=1 - Y|Z=0) / (X|Z=1 - X|Z=0)."""
-    m = df.groupby("Z")[["X", "Y"]].mean()
-    return (m.loc[1, "Y"] - m.loc[0, "Y"]) / (m.loc[1, "X"] - m.loc[0, "X"])
+def iv_effect(df):
+    """(change in Y from Z=0 to Z=1) / (change in X from Z=0 to Z=1)."""
+    means = df.groupby("Z")[["X", "Y"]].mean()
+    change = means.loc[1] - means.loc[0]
+    return change["Y"] / change["X"]
 
 
-def ratios_by_w(df, bins):
-    """Wald ratio in each range of W; ranges missing a Z group are skipped."""
-    out = []
-    for _, s in df.groupby(bins, observed=True):
-        if s["Z"].nunique() == 2:
-            out.append(wald(s))
-    return np.array(out)
+def effects_by_w(df, w_groups):
+    """The effect within each W group. Groups with only one Z value are skipped."""
+    return np.array([iv_effect(group) for _, group in df.groupby(w_groups, observed=True)
+                     if group["Z"].nunique() == 2])
 
 
 def report_instrument():
     df = load("homework_4.1.csv")
-    print(f"overall ratio: {wald(df):.4f}\n")
+    print(f"effect ignoring W: {iv_effect(df):.2f}\n")
 
-    print(f"{'ranges':<16} {'mean':>7} {'min':>8} {'max':>8} {'skipped':>8}")
-    for label, n, cut in [("equal count", 20, pd.qcut), ("equal count", 100, pd.qcut),
-                          ("equal count", 250, pd.qcut), ("equal width", 10, pd.cut),
-                          ("equal width", 20, pd.cut), ("equal width", 40, pd.cut)]:
-        bins = cut(df["W"], n)
-        r = ratios_by_w(df, bins)
-        skipped = bins.value_counts().gt(0).sum() - len(r)
-        print(f"{label + f' x{n}':<16} {r.mean():7.3f} {r.min():8.2f} {r.max():8.2f} {skipped:8d}")
+    # pd.cut: every group covers the same range of W. pd.qcut: every group has the same count.
+    print(f"{'groups':<18} {'average':>8} {'lowest':>8} {'highest':>8}")
+    for label, split, n in [("same range", pd.cut, 20), ("same range", pd.cut, 40),
+                            ("same count", pd.qcut, 20), ("same count", pd.qcut, 100)]:
+        effects = effects_by_w(df, split(df["W"], n))
+        print(f"{f'{label} x{n}':<18} {effects.mean():8.2f} {effects.min():8.2f} {effects.max():8.2f}")
 
 
 # --- Q2: admission vs. test score near 80 ---------------------------------
@@ -68,27 +63,33 @@ def report_instrument():
 def near_cutoff(name):
     df = load(name)
     df.columns = ["X", "Y"]
-    return df[df["X"].between(CUTOFF - WINDOW, CUTOFF + WINDOW)]
+    return df[df["X"].between(LOW, HIGH)]
+
+
+def share_admitted(df, low, high):
+    return df.loc[(df["X"] >= low) & (df["X"] < high), "Y"].mean()
 
 
 def draw(ax, df, title):
-    """Dots: share admitted per half-point of score. Line: logistic regression."""
-    edges = np.arange(CUTOFF - WINDOW, CUTOFF + WINDOW + BIN_WIDTH, BIN_WIDTH)
-    share = df.groupby(pd.cut(df["X"], edges, right=False), observed=True)["Y"].mean()
-    ax.scatter([iv.mid for iv in share.index], share * 100, s=22, color=DOTS,
-               label="Actual % admitted")
+    # Dots: share admitted in each half-point of score.
+    edges = np.arange(LOW, HIGH + DOT_WIDTH, DOT_WIDTH)
+    dots = df.groupby(pd.cut(df["X"], edges, right=False), observed=True)["Y"].mean()
+    ax.scatter(edges[:-1] + DOT_WIDTH / 2, dots * 100, s=22, color=MUTED, label="Actual % admitted")
 
+    # Line: probability predicted by logistic regression.
     fit = smf.logit("Y ~ X", df).fit(disp=0)
-    x = np.linspace(CUTOFF - WINDOW, CUTOFF + WINDOW, 200)
-    ax.plot(x, fit.predict(pd.DataFrame({"X": x})) * 100, color=LINE, lw=2.5,
+    scores = pd.DataFrame({"X": np.linspace(LOW, HIGH, 200)})
+    ax.plot(scores["X"], fit.predict(scores) * 100, color=BLUE, lw=2.5,
             label="Logistic regression prediction")
 
-    # Actual share admitted in the one point of score on each side of 80.
-    below = df.loc[df["X"].between(CUTOFF - 1, CUTOFF, inclusive="left"), "Y"].mean()
-    above = df.loc[df["X"].between(CUTOFF, CUTOFF + 1, inclusive="left"), "Y"].mean()
-    at_80 = fit.predict(pd.DataFrame({"X": [CUTOFF]})).iloc[0]
-    ax.text(CUTOFF - WINDOW + 0.2, 5, f"Actual: jumps {below:.0%} to {above:.0%} at 80\n"
-                             f"Logistic at 80: {at_80:.0%}", color=INK, fontsize=9)
+    # Label: actual share within one point on each side of 80 vs. the prediction at 80.
+    below = share_admitted(df, CUTOFF - 1, CUTOFF)
+    above = share_admitted(df, CUTOFF, CUTOFF + 1)
+    at_cutoff = fit.predict(pd.DataFrame({"X": [CUTOFF]})).iloc[0]
+    label = (f"Actual: jumps {below:.0%} to {above:.0%} at {CUTOFF}\n"
+             f"Logistic at {CUTOFF}: {at_cutoff:.0%}")
+    ax.text(LOW + 0.2, 5, label, color=INK, fontsize=9)
+    print(f"{title}: {label.replace(chr(10), '   ')}")
 
     ax.axvline(CUTOFF, color=MUTED, lw=1, ls=":")
     ax.set_title(title, color=INK, loc="left")
@@ -97,20 +98,16 @@ def draw(ax, df, title):
     ax.yaxis.set_major_formatter(lambda v, _: f"{v:.0f}%")
     ax.grid(axis="y", color=GRID, lw=1)
     ax.spines[["top", "right"]].set_visible(False)
-    return below, above, at_80
 
 
 def report_plot():
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), sharey=True)
     print()
-    for ax, name, title in [(axes[0], "homework_4.2.a.csv", "Dataset a"),
-                            (axes[1], "homework_4.2.b.csv", "Dataset b")]:
-        below, above, at_80 = draw(ax, near_cutoff(name), title)
-        print(f"{title}: actual {below:.0%} below 80, {above:.0%} above   logistic at 80 = {at_80:.0%}")
+    for ax, d in zip(axes, ["a", "b"]):
+        draw(ax, near_cutoff(f"homework_4.2.{d}.csv"), f"Dataset {d}")
 
     axes[0].set_ylabel("Chance of getting into college", color=MUTED)
-    handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=2, frameon=False)
+    fig.legend(*axes[0].get_legend_handles_labels(), loc="lower center", ncol=2, frameon=False)
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     fig.savefig(PLOT, dpi=150)
     print(f"\nsaved {PLOT.name}")

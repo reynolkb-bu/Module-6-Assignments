@@ -14,7 +14,7 @@ w_groups = pd.qcut(df["W"], 20)
 print(np.mean([iv_effect(group) for _, group in df.groupby(w_groups, observed=True)]))  # 1.51
 ```
 
-The issue I ran into when I first split W into groups is that the groups at the edge of the ranges only had a few people in them. This is because the extreme W values are rare. I fix this by using pd.qcut, which puts the same number of people into every group instead of breaking up the groups by range.
+The issue I ran into when I first split W into groups is that the groups at the edge of the ranges only had a few people in them. This is because the extreme W values are rare. I fixed this by using pd.qcut, which puts the same number of people into every group instead of breaking up the groups by range.
 
 ## 2. Plot the college outcome (Y) vs. the test score (X) in a small range of test scores around 80. On the plot, compare it with the Y probability predicted by logistic regression.
 

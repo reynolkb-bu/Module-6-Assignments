@@ -2,7 +2,7 @@
 
 ## 1. The Coding Quiz gives two options for instrumental variables. For the second item (dividing the range of W into multiple ranges), explain how you did it, show your code, and discuss any issues you encountered.
 
-I split the data into 20 groups based on W, so everyone in a group has about the same W. In each group, I found how much Y changed when Z went from 0 to 1, and divided it by how much X changed. Then I took the average across all 20 groups. I got 1.51, which is almost the same as the 1.56 from the first option.
+I broke the data into 20 groups based on W. That way, everyone in a group has about the same W. Then within each group, I found out how much Y changed when Z went from zero to one, and then divided it by how much X changed. After that, I took the average across 20 groups. I got 1.51, which is about the same as 1.56 from the first option. This means that controlling for W didn't change the answer. Therefore, we don't need W because Z was already random for everyone.
 
 ```python
 def effect(group):
@@ -13,12 +13,14 @@ groups = pd.qcut(df["W"], 20)
 print(np.mean([effect(g) for _, g in df.groupby(groups, observed=True)]))  # 1.51
 ```
 
-The issue I ran into was that when I first split W into equal-sized chunks, the groups at the edges only had a few people in them. Those tiny groups gave crazy answers, like -45. I fixed it by using `pd.qcut`, which puts the same number of people in every group.
+The issue I ran into when I first split W into groups is that the groups at the edge of the ranges only had a few people in them. This is because the extreme W values are rare. I fix this by using pd.qcut, which puts the same number of people into every group instead of breaking up the groups by range.
 
 ## 2. Plot the college outcome (Y) vs. the test score (X) in a small range of test scores around 80. On the plot, compare it with the Y probability predicted by logistic regression.
 
 ![College admission vs. test score near 80](week4_reflection.png)
 
-Y is either 0 or 1, so plotting it directly would just show two lines of dots. Instead, I grouped students with similar scores together and plotted the percent of each group that got into college. Those are the gray dots.
+The gray dots on the graphs are the actual data. Since Y is only ever 0 or 1, I grouped students with similar scores and then plotted the percent of each group that got into college.
 
-The blue dashed line is a normal logistic regression. It can only draw a smooth curve, so it misses the jump at 80. The orange line is a logistic regression that is allowed to jump at 80, and it matches the dots much better. In dataset a, for example, the chance of getting in jumps from about 31% to 60% right at a score of 80.
+The blue line is the logistic regression's prediction. Since it can only draw a smooth curve, it doesn't account for the jump at a test score of 80. In dataset A, the chance of getting in increases from ~30% to ~60% when you get a score of 80, but the logistic regression predicts 45%. Dataset B has the same exact problem. The real chance of getting in increases from ~70% to ~90%. But the logistic regression predicts about 80%.
+
+This means that using plain logistic regression actually hides a jump, which is the most important part of this data.

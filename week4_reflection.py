@@ -6,8 +6,8 @@ Equal-width ranges leave only a few rows (sometimes one Z group) at the tails,
 so the ranges hold equal counts instead.
 
 Q2: plot Y vs. X from 75 to 85. Y is 0/1, so the dots are the share admitted
-in quarter-point bins with 95% intervals, against two logistic regressions:
-a smooth one (Y ~ s) and one that can jump at 80 (Y ~ s + post + s:post).
+in each half-point of score, against the probability predicted by a logistic
+regression (Y ~ X). The curve is smooth, so it cannot follow the jump at 80.
 """
 
 from pathlib import Path
@@ -22,10 +22,10 @@ PLOT = Path(__file__).parent / "week4_reflection.png"
 W_BINS = 20
 CUTOFF = 80
 WINDOW = 5                 # plot 75 to 85
-BIN_WIDTH = 0.25
+BIN_WIDTH = 0.5
 
 INK, MUTED, GRID = "#0b0b0b", "#52514e", "#e5e4df"
-SMOOTH, JUMP = "#2a78d6", "#eb6834"
+DOTS, LINE = "#52514e", "#2a78d6"
 
 
 def load(name):
@@ -68,63 +68,49 @@ def report_instrument():
 def near_cutoff(name):
     df = load(name)
     df.columns = ["X", "Y"]
-    df = df[df["X"].between(CUTOFF - WINDOW, CUTOFF + WINDOW)].copy()
-    df["s"] = df["X"] - CUTOFF
-    df["post"] = (df["X"] >= CUTOFF).astype(int)
-    return df
-
-
-def binned(df):
-    """Share admitted per bin, with a 95% interval."""
-    edges = np.arange(CUTOFF - WINDOW, CUTOFF + WINDOW + BIN_WIDTH, BIN_WIDTH)
-    g = df.groupby(pd.cut(df["X"], edges, right=False), observed=True)["Y"]
-    out = g.agg(["mean", "size"])
-    out["x"] = [iv.mid for iv in out.index]
-    out["ci"] = 1.96 * np.sqrt(out["mean"] * (1 - out["mean"]) / out["size"])
-    return out
+    return df[df["X"].between(CUTOFF - WINDOW, CUTOFF + WINDOW)]
 
 
 def draw(ax, df, title):
-    smooth = smf.logit("Y ~ s", df).fit(disp=0)
-    jump = smf.logit("Y ~ s * post", df).fit(disp=0)
+    """Dots: share admitted per half-point of score. Line: logistic regression."""
+    edges = np.arange(CUTOFF - WINDOW, CUTOFF + WINDOW + BIN_WIDTH, BIN_WIDTH)
+    share = df.groupby(pd.cut(df["X"], edges, right=False), observed=True)["Y"].mean()
+    ax.scatter([iv.mid for iv in share.index], share * 100, s=22, color=DOTS,
+               label="Actual % admitted")
 
-    b = binned(df)
-    ax.errorbar(b["x"], b["mean"], yerr=b["ci"], fmt="o", ms=4, color=MUTED,
-                ecolor=MUTED, elinewidth=1, capsize=0, label="Share admitted (0.25-pt bins, 95% CI)")
+    fit = smf.logit("Y ~ X", df).fit(disp=0)
+    x = np.linspace(CUTOFF - WINDOW, CUTOFF + WINDOW, 200)
+    ax.plot(x, fit.predict(pd.DataFrame({"X": x})) * 100, color=LINE, lw=2.5,
+            label="Logistic regression prediction")
 
-    grid = np.linspace(-WINDOW, WINDOW, 400)
-    curve = pd.DataFrame({"s": grid, "post": (grid >= 0).astype(int)})
-    ax.plot(grid + CUTOFF, smooth.predict(curve), color=SMOOTH, lw=2, ls="--",
-            label="Logistic, no cutoff term")
-    for side in (grid < 0, grid >= 0):
-        ax.plot(grid[side] + CUTOFF, jump.predict(curve[side]), color=JUMP, lw=2,
-                label="Logistic with jump at 80" if side[0] else None)
+    # Actual share admitted in the one point of score on each side of 80.
+    below = df.loc[df["X"].between(CUTOFF - 1, CUTOFF, inclusive="left"), "Y"].mean()
+    above = df.loc[df["X"].between(CUTOFF, CUTOFF + 1, inclusive="left"), "Y"].mean()
+    at_80 = fit.predict(pd.DataFrame({"X": [CUTOFF]})).iloc[0]
+    ax.text(CUTOFF - WINDOW + 0.2, 5, f"Actual: jumps {below:.0%} to {above:.0%} at 80\n"
+                             f"Logistic at 80: {at_80:.0%}", color=INK, fontsize=9)
 
     ax.axvline(CUTOFF, color=MUTED, lw=1, ls=":")
     ax.set_title(title, color=INK, loc="left")
-    ax.set_xlabel("Test score (X)", color=MUTED)
+    ax.set_xlabel("Test score", color=MUTED)
+    ax.set_ylim(0, 100)
+    ax.yaxis.set_major_formatter(lambda v, _: f"{v:.0f}%")
     ax.grid(axis="y", color=GRID, lw=1)
     ax.spines[["top", "right"]].set_visible(False)
-    return smooth, jump
+    return below, above, at_80
 
 
 def report_plot():
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.8), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), sharey=True)
     print()
     for ax, name, title in [(axes[0], "homework_4.2.a.csv", "Dataset a"),
                             (axes[1], "homework_4.2.b.csv", "Dataset b")]:
-        df = near_cutoff(name)
-        smooth, jump = draw(ax, df, title)
-        just_below = pd.DataFrame({"s": [-1e-9], "post": [0]})
-        at_cutoff = pd.DataFrame({"s": [0.0], "post": [1]})
-        print(f"{title}: n = {len(df)}   smooth at 80 = {smooth.predict(at_cutoff).iloc[0]:.3f}   "
-              f"jump model {jump.predict(just_below).iloc[0]:.3f} -> "
-              f"{jump.predict(at_cutoff).iloc[0]:.3f}   (post t = {jump.tvalues['post']:.1f})")
+        below, above, at_80 = draw(ax, near_cutoff(name), title)
+        print(f"{title}: actual {below:.0%} below 80, {above:.0%} above   logistic at 80 = {at_80:.0%}")
 
-    axes[0].set_ylabel("Probability of getting into college (Y)", color=MUTED)
-    axes[0].set_ylim(0, 1)
+    axes[0].set_ylabel("Chance of getting into college", color=MUTED)
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=3, frameon=False)
+    fig.legend(handles, labels, loc="lower center", ncol=2, frameon=False)
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     fig.savefig(PLOT, dpi=150)
     print(f"\nsaved {PLOT.name}")

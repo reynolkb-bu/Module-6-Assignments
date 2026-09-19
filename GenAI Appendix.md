@@ -29,3 +29,7 @@ I have done a similar setup for this coding homework where I have created explor
 ## Week 3
 
 **(a)** https://chatgpt.com/share/6aa6d81b-7924-83e8-ba46-567f5222f8b3
+
+## Week 4
+
+**(a)** https://chatgpt.com/share/6aae90a5-2438-83e8-8ac0-063b5ceeac3b

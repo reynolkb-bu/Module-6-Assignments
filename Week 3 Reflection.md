@@ -6,7 +6,7 @@ The best way I thought of to go about testing for a change in the second derivat
 
 The quiz tested whether the car suddenly moved to a new spot in time and whether its speed changed. Testing the second derivative is simply asking whether the car sped up or slowed down at a certain point in time. In order to test it we can add an additional term to the regression equation. The term would be a squared term that only applies after the event. If that term is different from zero, that means the curve changed at that event. 
 
-I then ran this on the quiz data. In my `week3_reflection.py` file, none of the three datasets actually showed a change in the second derivative, meaning the answer still holds. 
+I then ran this on the quiz data. In the Week 3 section of `Weeks_1-4_Code.ipynb`, none of the three datasets actually showed a change in the second derivative, meaning the answer still holds. 
 
 ## 2. Create your own scenario that illustrates differences-in-differences. Describe the story behind the data and show whether there is a nonzero treatment effect.
 

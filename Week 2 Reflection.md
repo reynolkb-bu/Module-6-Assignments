@@ -27,4 +27,4 @@ for n in [100, 400, 1600, 6400, 25600]:
     print(n, np.mean([bootstrap_mean_variance(pareto_sample(rng, n, 3.0), rng) for _ in range(40)]))
 ```
 
-Each time the sample size increased by four times, the variance decreased by about 25%. This essentially means that the variance will shrink at about 1/n. This in turn matches the Pareto theory. The one issue I found is that Pareto data sometimes will have big values, meaning a single run could seem scattered. Therefore I had to repeat each run 40 times and average those runs out.
+Each time the sample size increased by four times, the variance decreased to about 25% of what it was before. This essentially means that the variance will shrink at about 1/n. This in turn matches the Pareto theory. The one issue I found is that Pareto data sometimes will have big values, meaning a single run could seem scattered. Therefore I had to repeat each run 40 times and average those runs out.

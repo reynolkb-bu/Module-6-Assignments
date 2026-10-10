@@ -15,7 +15,7 @@ As the sample size grows, variance gets smaller. For example, think of Google re
 To bootstrap the variance of the mean of a Pareto distribution, I took one sample from the distribution. After that, I made 5,000 new samples by randomly picking values, allowed repeating values, and then took the average of each. The variance of the mean is how much those 5,000 averages vary.
 
 ```python
-SHAPES = {"a = 3.0 (finite variance)": 3.0, "a = 1.5 (infinite variance)": 1.5}
+SHAPES = {"a = 3.0 (finite variance)": 3.0}
 SIZES = [100, 400, 1600, 6400, 25600]  # quadruples, so 1/n predicts a ratio of 0.25
 N_BOOTSTRAP = 5_000
 N_REPLICATES = 40  # one sample alone is far too noisy on a heavy tail

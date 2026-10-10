@@ -9,7 +9,7 @@ when a > 2, so a = 3.0 converges at the usual 1/n rate and a = 1.5 does not.
 
 import numpy as np
 
-SHAPES = {"a = 3.0 (finite variance)": 3.0, "a = 1.5 (infinite variance)": 1.5}
+SHAPES = {"a = 3.0 (finite variance)": 3.0}
 SIZES = [100, 400, 1600, 6400, 25600]  # quadruples, so 1/n predicts a ratio of 0.25
 N_BOOTSTRAP = 5_000
 N_REPLICATES = 40  # one sample alone is far too noisy on a heavy tail

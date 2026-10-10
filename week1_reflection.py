@@ -17,7 +17,7 @@ from sklearn.neighbors import NearestNeighbors
 CSVS = Path(__file__).parent / "csvs"
 PERCENTILES = [50, 90, 95, 100]      # median, 90th, 95th, farthest
 CALIPERS = [np.inf, 0.05, 0.02]      # inf keeps every match
-RADIUS = 0.2
+RADIUS = 0.05
 
 
 def load():
@@ -51,9 +51,13 @@ def report_distances():
 
 
 def report_calipers():
-    _, treated, control = load()
+    df, treated, control = load()
     distances, matched_y = nearest_matches(treated, control)
     treated_y = treated["Y"].to_numpy()
+
+    # Y - Z removes Z's part of Y, so the gap between the groups is the true treatment effect.
+    true_effect = (df["Y"] - df["Z"]).groupby(df["X"]).mean().diff().iloc[-1]
+    print(f"\ntrue effect: {true_effect:.3f}")
 
     # Drop matches farther than a caliper and see whether the effect moves.
     print(f"\n{'caliper':<9} {'matches kept':>13} {'effect':>8}")

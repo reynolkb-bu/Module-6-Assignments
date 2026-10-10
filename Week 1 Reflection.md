@@ -42,9 +42,13 @@ The way we can be certain about this is to check whether the far matches actuall
 CALIPERS = [np.inf, 0.05, 0.02]      # inf keeps every match
 
 def report_calipers():
-    _, treated, control = load()
+    df, treated, control = load()
     distances, matched_y = nearest_matches(treated, control)
     treated_y = treated["Y"].to_numpy()
+
+    # Y - Z removes Z's part of Y, so the gap between the groups is the true treatment effect.
+    true_effect = (df["Y"] - df["Z"]).groupby(df["X"]).mean().diff().iloc[-1]
+    print(f"\ntrue effect: {true_effect:.3f}")
 
     # Drop matches farther than a caliper and see whether the effect moves.
     print(f"\n{'caliper':<9} {'matches kept':>13} {'effect':>8}")
@@ -63,7 +67,7 @@ When we use approach A, it picks the control that is the closest, regardless of 
 Weighted matching is a balanced way of doing it. It would be like pricing a house where you look at houses that are nearby but put more weight on the ones that are very similar to each other.
 
 ```python
-RADIUS = 0.2
+RADIUS = 0.05
 
 def radius_matching(treated, control, radius=RADIUS, weighted=True):
     """Each treated row vs. its controls within `radius`. weighted=False is approach B."""

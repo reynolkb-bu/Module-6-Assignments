@@ -1,25 +1,39 @@
-# Week 1 Reflection
+"""Week 1 reflection -- matching on homework_1.2.csv.
 
-## 1. In Coding Quiz 1, you are asked to find the distance of the farthest match in a set. Is this farthest match distance too far to be a meaningful match? How can you decide this?
+Q1: match each treated row (X = 1) to its nearest control (X = 0) on Z, then
+look at how far the matches are and whether the far ones change the estimate.
 
-Yes, a distance of the farthest match in a set is too great to be a meaningful match. The reason is that matching usually only works if the pair is similar. For example, pricing a kitchen remodel by comparing a remodeled house to one that has not been remodeled. This would be like comparing a house that is twice as large. The pricing difference would be about the size of the house, not the actual kitchen.
+Q2: weighted matching. Like (B), take every control within a radius of each
+treated row, but weight each one by 1 - distance / radius so closer controls
+count more. Each treated row's match is the weighted average Y of its controls.
+"""
 
-One way to decide is to compare the gap in the data spread. The furthest match is about 0.21 apart, which is about 0.73 standard deviations of Z. A common rule of thumb we can use allows for about 0.2 standard deviations. The typical match here is only 0.013 apart. This is due to 18 of the 48 treated rows having a larger Z than every control, so they all get matched to the same edge control.
+from pathlib import Path
 
-```python
+import numpy as np
+import pandas as pd
+from sklearn.neighbors import NearestNeighbors
+
 CSVS = Path(__file__).parent / "csvs"
 PERCENTILES = [50, 90, 95, 100]      # median, 90th, 95th, farthest
+CALIPERS = [np.inf, 0.05, 0.02]      # inf keeps every match
+RADIUS = 0.2
+
 
 def load():
     """Split homework_1.2.csv into treated (X = 1) and control (X = 0) rows."""
     df = pd.read_csv(CSVS / "homework_1.2.csv")
     return df, df[df["X"] == 1], df[df["X"] == 0]
 
+
+# --- Q1: is the farthest match too far? -----------------------------------
+
 def nearest_matches(treated, control):
     """Approach A: nearest control on Z, with replacement. Returns distances and matched Y."""
     nn = NearestNeighbors(n_neighbors=1).fit(control[["Z"]])
     distances, indices = nn.kneighbors(treated[["Z"]])
     return distances.ravel(), control["Y"].to_numpy()[indices.ravel()]
+
 
 def report_distances():
     df, treated, control = load()
@@ -34,12 +48,7 @@ def report_distances():
     print(f"\n{'percentile':<11} {'distance':>9}")
     for p, value in zip(PERCENTILES, np.percentile(distances, PERCENTILES)):
         print(f"{p:<11} {value:9.4f}")
-```
 
-The way we can be certain about this is to check whether the far matches actually change the answer. If we use all the matches, the effect is 0.543. If we keep only the matches within 0.05, it gives us 0.503. If we keep all the matches within 0.02, it gives us 0.500. The estimate improves once the bad matches are dropped, which proves that they were indeed the problem.
-
-```python
-CALIPERS = [np.inf, 0.05, 0.02]      # inf keeps every match
 
 def report_calipers():
     _, treated, control = load()
@@ -52,18 +61,9 @@ def report_calipers():
         keep = distances <= caliper
         effect = (treated_y[keep] - matched_y[keep]).mean()
         print(f"{caliper:<9} {keep.sum():>13} {effect:8.3f}")
-```
 
-## 2. Invent your own type of matching similar to (A) and (B), which has a different way to pick the matches in X = 0.
 
-The approach I would use that is similar to A and B would be weighted matching. Similar to approach B, I would take every control within a set of each treated row. The difference is that closer controls count more than the farther ones. A control right next to the treated row would be weighted more, whereas a control near the edge would not be weighted as much.
-
-When we use approach A, it picks the control that is the closest, regardless of other controls being almost as close as the one that gets picked. When using approach B, it will look at every nearby control. Let's say there is one at 0.0 and another at 0.9. It would weight these equally, which doesn't really make sense.
-
-Weighted matching is a balanced way of doing it. It would be like pricing a house where you look at houses that are nearby but put more weight on the ones that are very similar to each other.
-
-```python
-RADIUS = 0.2
+# --- Q2: weighted matching ------------------------------------------------
 
 def radius_matching(treated, control, radius=RADIUS, weighted=True):
     """Each treated row vs. its controls within `radius`. weighted=False is approach B."""
@@ -77,6 +77,7 @@ def radius_matching(treated, control, radius=RADIUS, weighted=True):
             effects.append(y - np.average(control_y[group], weights=weights))
     return np.mean(effects)
 
+
 def report_matching():
     _, treated, control = load()
     _, matched_y = nearest_matches(treated, control)
@@ -84,4 +85,9 @@ def report_matching():
     print(f"\n(A) nearest neighbor:        {(treated['Y'].to_numpy() - matched_y).mean():.3f}")
     print(f"(B) radius, equal weights:   {radius_matching(treated, control, weighted=False):.3f}")
     print(f"(C) radius, closer weighted: {radius_matching(treated, control, weighted=True):.3f}")
-```
+
+
+if __name__ == "__main__":
+    report_distances()
+    report_calipers()
+    report_matching()

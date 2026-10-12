@@ -95,7 +95,11 @@ def report_autocorrelation():
     print("  -> A (ratio increases)")
 
 
-if __name__ == "__main__":
+def report():
     report_error_correlation()
     report_slices()
     report_autocorrelation()
+
+
+if __name__ == "__main__":
+    report()

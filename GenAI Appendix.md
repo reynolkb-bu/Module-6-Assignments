@@ -41,3 +41,7 @@ I have done a similar setup for this coding homework where I have created explor
 ## Week 6
 
 **(a)** https://chatgpt.com/share/6ac1331d-87b0-83e8-b64e-e0adf25dc2b9
+
+## Week 7
+
+**(a)** https://chatgpt.com/share/6accd8dc-9a74-83e8-9f3f-b62e5b6ba1bc

@@ -19,13 +19,13 @@ I made 1,000 datasets, fit `Y ~ X` on each, and took the standard deviation of t
 | statsmodels OLS | 0.065 |
 | statsmodels robust (`HC1`) | 0.113 |
 
-OLS is about 40% too small. It assumes every row has the same noise, but the noisiest rows are the ones that move the slope the most. The robust standard error lets each row have its own noise and comes much closer to the simulation.
+OLS is about 40% too small. OLS makes the assumption that each row contains the same amount of noise. However, the noisiest rows are the ones that move the slope the most. By using a standard error, it allows each row to have its own noise which comes a lot closer to the simulation.
 
 ## 2. Write some code that will use a simulation to estimate the standard deviation of the coefficient when errors are highly correlated / non-independent. Compare these standard errors to those found via statsmodels OLS or a similar linear regression model.
 
-A good real-world example is daily temperature and ice cream sales. If today is hotter than usual, tomorrow probably is too. So 100 days of data is really just a few hot and cold stretches, not 100 separate days.
+A good example to estimate the standard deviation of the coefficient when errors are highly correlated / non-independent is daily temperature and ice cream sales. You can assume that if today is hotter than normal, tomorrow probably will be too. Therefore, 100 days of data is essentially a couple of hot stretches and cold stretches.
 
-I built X and the error so each value is `rho` times the last one plus new noise. A higher `rho` means neighbouring rows are more alike.
+I built X and the error with each value being `rho` times the last one plus new noise. If you have a higher `rho` it means that neighboring rows are similar.
 
 ```python
 for i in range(1, n):
@@ -41,13 +41,13 @@ for i in range(1, n):
 | 0.90 | 0.286 | 0.131 | 0.148 |
 | 0.99 | 0.575 | 0.115 | 0.100 |
 
-With no correlation everything matches. As `rho` goes up, the real spread grows but OLS stays low. OLS thinks it has 100 independent rows when it really has a lot fewer.
+If there is no correlation it means that everything matches. As `rho` goes up, the spread increases and OLS stays low. Because of this, OLS thinks it has 100 independent rows when in reality it has a lot fewer.
 
 ## 3. Show that if the correlation between errors is high enough, then the estimated standard deviation of the coefficient, using bootstrap errors, might not match that found by a full simulation of the Data Generating Process.
 
-The bootstrap misses too. At `rho = 0.99` it says 0.10 when the real answer is 0.57. The bootstrap resamples rows one at a time from a single dataset, so it breaks up the rows that were moving together. Every resample looks like independent data.
+If the correlation between errors is high enough, then the estimated standard deviation of the coefficient might not match what is found by a full simulation. At rho = 0.99, the bootstrap stays at 0.10 when the real answer is 0.57. Bootstrap resamples each row one at a time from a single dataset. This means it breaks up the rows that were moving together so that each resample looks like independent data.
 
-Think of shuffling a song. If you pick random single notes, you lose the melody. If you pick random chunks of a few seconds, the melody survives inside each chunk. The fix is the same: resample blocks of neighbouring rows instead of single rows. You need a huge amount of data for this to work, because each block has to be long and you still need a lot of blocks.
+For example, you can think of shuffling a single song. If you pick random notes, you don’t get the overall melody. If you pick random chunks, then you do get the melody. The fix here is the same, we resample chunks of neighboring rows instead of single rows. You do need a lot of data for this to work since each chunk has to be long enough and you need a lot of chunks to analyze.
 
 ```python
 starts = rng.integers(0, n - block + 1, n // block)
@@ -62,4 +62,4 @@ At `rho = 0.99`:
 | 10,000 | 0.101 | 0.011 | 0.075 |
 | 100,000 | 0.032 | 0.003 | 0.034 |
 
-At 100,000 rows the block bootstrap is close to the simulation. More data alone doesn't fix the regular bootstrap though. It stays about 10x too small no matter how many rows you have.
+At 100,000 rows we are able to get the bootstrap close to the simulation. If you only add more data, it doesn’t fix the regular bootstrap. It stays 10x too small no matter how many rows you have.

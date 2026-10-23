@@ -48,7 +48,7 @@ Every treated row searches every untreated row and takes the closest one. The sa
 
 ## 3. Obstacles, challenges and insights
 
-**Insight: I picked Mahalanobis instead of plain distance.** Let's imagine you're trying to find similar patients by weight and age. A 10-pound difference in weight isn’t that big of a deal, but a 10-year age gap is. If you use plain distance, it treats them as the same. Manhalanobis scales each variable by how spread out it is.
+**Insight: I picked Mahalanobis instead of plain distance.** Let's imagine you're trying to find similar patients by weight and age. A 10-pound difference in weight isn’t that big of a deal, but a 10-year age gap is. If you use plain distance, it treats them as the same. Mahalanobis scales each variable by how spread out it is.
 
 **Insight: Common support.** The treated item at (2.70, 0.54) has no untreated item close to it. It’s like trying to compare a 7-foot basketball player to someone that is short and didn’t play. Since the closest match is so far away, that comparison is not as trustworthy as the others.
 

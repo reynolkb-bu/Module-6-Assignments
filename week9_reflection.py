@@ -1,57 +1,41 @@
-"""Week 9 reflection -- simulated sd of the coefficient vs. what OLS reports.
+"""Week 9 reflection -- simulated sd of the coefficient vs. what OLS and the
+bootstrap report. The true model is always Y = 1 + 2X + error.
 
 Q1  Heteroskedasticity: the noise in Y grows with |X|.
-Q2  Correlated errors: X and the error each follow an AR(1) series, then a
-    bootstrap from one dataset vs. a full simulation of the DGP.
-
-In every case the true model is Y = 1 + 2X + error, so the "real" sd of the
-coefficient is the sd of the estimates across many fresh datasets.
+Q2  Correlated errors: X and the error are both AR(1) series.
 """
 
 import numpy as np
 import statsmodels.api as sm
 
-N_ROWS = 1_000
-N_EXPERIMENTS = 1_000
-N_BOOT = 500
-RHOS = [0.0, 0.5, 0.9, 0.99]
-RHO_HIGH = 0.99
-BIG_NS = [100, 10_000, 100_000]
-BIG_EXPERIMENTS = 200
-BIG_BOOT = 300
-SEED = 0
-rng = np.random.default_rng(SEED)
+rng = np.random.default_rng(0)
 
 
-def ols(x, y, cov_type="nonrobust"):
-    """(coef of X, its standard error) from Y ~ X."""
-    fit = sm.OLS(y, sm.add_constant(x)).fit(cov_type=cov_type)
-    return fit.params[1], fit.bse[1]
+def ols_se(x, y, cov_type="nonrobust"):
+    return sm.OLS(y, sm.add_constant(x)).fit(cov_type=cov_type).bse[1]
+
+
+def slope(x, y):
+    return np.polyfit(x, y, 1)[0]
+
+
+def sim_sd(make_data, n_datasets):
+    """sd of the coef across many fresh datasets -- the real answer."""
+    return np.std([slope(*make_data()) for _ in range(n_datasets)], ddof=1)
 
 
 # --- Q1: heteroskedasticity -------------------------------------------------
 
-def hetero_data(n=N_ROWS):
+def hetero_data(n=1_000):
     x = rng.normal(0, 1, n)
     y = 1 + 2 * x + rng.normal(0, 1, n) * 2 * np.abs(x)   # error sd = 2|X|
     return x, y
 
 
-def report_hetero():
-    runs = np.array([ols(*hetero_data()) for _ in range(N_EXPERIMENTS)])
-    x, y = hetero_data()
-    print(f"Q1 heteroskedastic errors, {N_EXPERIMENTS} datasets of {N_ROWS} rows:")
-    print(f"  sd of coef across datasets:  {runs[:, 0].std(ddof=1):.4f}")
-    print(f"  mean OLS standard error:     {runs[:, 1].mean():.4f}")
-    # HC1 lets each row have its own error variance instead of one shared one.
-    print(f"  robust (HC1) SE, one dataset: {ols(x, y, 'HC1')[1]:.4f}")
-
-
 # --- Q2: correlated errors --------------------------------------------------
 
 def make_error(rho, n):
-    """AR(1) series. Each value is rho times the last plus new noise, scaled so
-    every value has variance 1 -- only the correlation changes with rho."""
+    """Each value is rho times the last plus new noise, scaled to variance 1."""
     err = np.empty(n)
     err[0] = rng.normal(0, 1)
     for i in range(1, n):
@@ -61,21 +45,11 @@ def make_error(rho, n):
 
 def correlated_data(rho, n):
     x = make_error(rho, n)
-    y = 1 + 2 * x + make_error(rho, n)
-    return x, y
+    return x, 1 + 2 * x + make_error(rho, n)
 
 
-def slope(x, y):
-    return np.polyfit(x, y, 1)[0]
-
-
-def bootstrap_sd(x, y, block=1, n_boot=N_BOOT):
-    """sd of the coef over resamples of one dataset.
-
-    block = 1 is the usual bootstrap (resample single rows). A larger block
-    resamples runs of `block` neighbouring rows, which keeps the correlation
-    between neighbours inside each run.
-    """
+def bootstrap_sd(x, y, block=1, n_boot=300):
+    """Resample runs of `block` neighbouring rows (block = 1 is the usual bootstrap)."""
     n = len(x)
     coefs = []
     for _ in range(n_boot):
@@ -85,32 +59,26 @@ def bootstrap_sd(x, y, block=1, n_boot=N_BOOT):
     return np.std(coefs, ddof=1)
 
 
-def report_correlated():
-    n = 100
-    print(f"\nQ2 correlated errors, {N_EXPERIMENTS} datasets of {n} rows:")
-    print(f"{'rho':>5} {'simulated sd':>13} {'OLS SE':>8} {'bootstrap':>10}")
-    for rho in RHOS:
-        sims = [slope(*correlated_data(rho, n)) for _ in range(N_EXPERIMENTS)]
-        x, y = correlated_data(rho, n)
-        print(f"{rho:5.2f} {np.std(sims, ddof=1):13.4f} {ols(x, y)[1]:8.4f} "
-              f"{bootstrap_sd(x, y):10.4f}")
-
-
-def report_big_data():
-    print(f"\n   rho = {RHO_HIGH}, bootstrap from one dataset vs. {BIG_EXPERIMENTS} full simulations:")
-    print(f"{'rows':>8} {'simulated sd':>13} {'row bootstrap':>14} {'block bootstrap':>16}")
-    for n in BIG_NS:
-        sims = [slope(*correlated_data(RHO_HIGH, n)) for _ in range(BIG_EXPERIMENTS)]
-        x, y = correlated_data(RHO_HIGH, n)
-        block = max(n // 100, 1)   # 100 blocks, each 1/100th of the data
-        print(f"{n:8,d} {np.std(sims, ddof=1):13.4f} {bootstrap_sd(x, y, 1, BIG_BOOT):14.4f} "
-              f"{bootstrap_sd(x, y, block, BIG_BOOT):16.4f}  (block = {block:,d})")
-
-
 def report():
-    report_hetero()
-    report_correlated()
-    report_big_data()
+    x, y = hetero_data()
+    print("Q1 heteroskedastic errors:")
+    print(f"  simulated sd {sim_sd(hetero_data, 1_000):.4f}   OLS SE {ols_se(x, y):.4f}   "
+          f"robust SE {ols_se(x, y, 'HC1'):.4f}")
+
+    print("\nQ2 correlated errors, 100 rows:")
+    print(f"{'rho':>5} {'simulated':>10} {'OLS':>7} {'bootstrap':>10}")
+    for rho in [0.0, 0.5, 0.9, 0.99]:
+        x, y = correlated_data(rho, 100)
+        sd = sim_sd(lambda: correlated_data(rho, 100), 1_000)
+        print(f"{rho:5.2f} {sd:10.4f} {ols_se(x, y):7.4f} {bootstrap_sd(x, y):10.4f}")
+
+    print("\n   rho = 0.99, more data:")
+    print(f"{'rows':>8} {'simulated':>10} {'row boot':>9} {'block boot':>11}")
+    for n in [100, 10_000, 100_000]:
+        x, y = correlated_data(0.99, n)
+        sd = sim_sd(lambda: correlated_data(0.99, n), 200)
+        block = max(n // 100, 1)   # 100 blocks
+        print(f"{n:8,d} {sd:10.4f} {bootstrap_sd(x, y):9.4f} {bootstrap_sd(x, y, block):11.4f}")
 
 
 if __name__ == "__main__":

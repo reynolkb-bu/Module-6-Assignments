@@ -49,3 +49,7 @@ I have done a similar setup for this coding homework where I have created explor
 ## Week 8
 
 **(a)** https://chatgpt.com/share/6adb7247-7244-83e8-bb1a-c940787b9794
+
+## Week 9
+
+**(a)** https://chatgpt.com/share/6adb7d57-ba9c-83e8-a8de-4ff58dde50de

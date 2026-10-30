@@ -48,10 +48,14 @@ Every treated row searches every untreated row and takes the closest one. The sa
 
 ## 3. Obstacles, challenges and insights
 
-**Insight: I picked Mahalanobis instead of plain distance.** Let's imagine you're trying to find similar patients by weight and age. A 10-pound difference in weight isn’t that big of a deal, but a 10-year age gap is. If you use plain distance, it treats them as the same. Mahalanobis scales each variable by how spread out it is.
+Insight:
+* I decided to pick Mahalanobis versus plain distance. The reason why is pretend you're trying to find similar patients by weight and age. If someone weighs 10 pounds more then another person, it's not that big of a deal. If someone is 10 years older then another person, that is a bigger jump even though both are by 10. If you use plain distance, it treats them as the same. Mahalanobis scales each variable by how spread out it is.
 
-**Insight: Common support.** The treated item at (2.70, 0.54) has no untreated item close to it. It’s like trying to compare a 7-foot basketball player to someone that is short and didn’t play. Since the closest match is so far away, that comparison is not as trustworthy as the others.
+Insight:
+* The treated item at (2.70, 0.54) has no untreated item close to it. It’s like trying to compare a 7-foot basketball player to someone that is short and didn’t play. Since the closest match is so far away, that comparison is not as trustworthy as the others.
 
-**Obstacle: I got Q4 wrong the first time.** I actually got question 4 wrong initially. I read “the nearest Z1 and Z2 values of the treated item" as the treated item's own values, (2.70, 0.54), and picked A because it was the closest option. The question was really asking for is the values of its nearest match, which is D. 
+Obstacle:
+* Initially I got question four wrong. The original question asked to find the nearest Z1 and Z2 values of the treated item. I interpreted that as the treated item's own values, which are (2.70, 0.54). There were no answers that matched that, so I picked A, which was the closest option. Later, the learning facilitator corrected the question to ask for the z1 and z2 values of the traded item's nearest untreated neighbor. I was the able to find that neighbor, which is (1.52, -1.28) or D (1.5, -1.3). 
 
-**Challenge: Getting the covariance matrix the right shape.** The quiz said to put all the Z1 and Z2 values into a 2 x N matrix. My data has one row per item and one column for Z1 and Z2, which is N x 2. If you don’t flip it with `.T`, `np.cov` compares all 1,000 rows to each other instead of comparing the two columns and gives a 1000 x 1000 matrix. Adding .T gives the 2 x 2 matrix that the quiz asked for.
+Challenge:
+* Getting the covariance matrix the right shape. The quiz said to put all the Z1 and Z2 values into a 2 x N matrix. My data has one row per item and one column for Z1 and Z2, which is N x 2. If you don’t flip it with `.T`, `np.cov` compares all 1,000 rows to each other instead of comparing the two columns and gives a 1000 x 1000 matrix. Adding .T gives the 2 x 2 matrix that the quiz asked for.

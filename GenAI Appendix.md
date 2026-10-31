@@ -53,3 +53,7 @@ I have done a similar setup for this coding homework where I have created explor
 ## Week 9
 
 **(a)** https://chatgpt.com/share/6adb7d57-ba9c-83e8-a8de-4ff58dde50de
+
+## Week 10
+
+**(a)** https://chatgpt.com/share/6ae5f8c3-28d4-83e8-84ad-8a6cd7926390

@@ -49,14 +49,15 @@ RHO = 0.8
 NUM = 10_000
 
 
-def ar1_error(n=NUM):
-    """AR(1): each value is 0.8 of the last plus fresh noise. Scaling the noise
-    by sqrt(1 - RHO**2) keeps the sd at 1; starting from N(0, 1) keeps it
-    there from the first step."""
-    err = np.empty(n)
-    err[0] = rng.normal()
-    for t in range(1, n):
-        err[t] = RHO * err[t - 1] + np.sqrt(1 - RHO**2) * rng.normal()
+def ar1_error():
+    """AR(1): each value is RHO times the last plus fresh noise. Scaling the
+    noise by sqrt(1 - RHO**2) keeps the sd at 1; starting from N(0, 1) keeps
+    it there from the first step."""
+    noise = rng.normal(size=NUM)
+    err = np.empty(NUM)
+    err[0] = noise[0]
+    for t in range(1, NUM):
+        err[t] = RHO * err[t - 1] + np.sqrt(1 - RHO**2) * noise[t]
     return err
 
 
@@ -75,8 +76,9 @@ def report_autocorrelation(n_trials=300):
     # OLS assumes independent rows. With both X and the error autocorrelated,
     # the true variance is (1 + RHO**2) / (1 - RHO**2) = 4.6x bigger, so the
     # simulated SE is about 2.1x the reported one.
-    print(f"  OLS SE {ses.mean():.4f}, simulated SE {coefs.std(ddof=1):.4f}"
-          f" (ratio {coefs.std(ddof=1) / ses.mean():.2f})  -> D (0.02)")
+    sim_se = coefs.std(ddof=1)
+    print(f"  OLS SE {ses.mean():.4f}, simulated SE {sim_se:.4f}"
+          f" (ratio {sim_se / ses.mean():.2f})  -> D (0.02)")
 
 
 # --- Q4: variance inflation factor -------------------------------------------
